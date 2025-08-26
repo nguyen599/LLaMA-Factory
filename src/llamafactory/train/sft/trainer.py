@@ -116,14 +116,14 @@ class CustomSeq2SeqTrainer(Seq2SeqTrainer):
 
     @override
     def compute_loss(self, model, inputs, return_outputs=False, *args, **kwargs):
-        print('CHECK in compute_loss', self.model.sequence_parallel_group)
+        # print('CHECK in compute_loss', self.model.sequence_parallel_group)
         if self.model.sequence_parallel_group is None:  # no sequence parallel, compute as it is
             # print(inputs)
             return super().compute_loss(model, inputs, **kwargs)
         else:
-            print(list(inputs.keys()))
-            print('atten_mask', inputs['attention_mask'].shape, inputs['attention_mask'].dtype)
-            print('input_ids', inputs['input_ids'].shape, inputs['input_ids'].dtype)
+            # print(list(inputs.keys()))
+            # print('atten_mask', inputs['attention_mask'].shape, inputs['attention_mask'].dtype)
+            # print('input_ids', inputs['input_ids'].shape, inputs['input_ids'].dtype)
             # print(dir(inputs))
             # compute loss without shift labels, as we have already shifted labels in data processing when using sequence parallel
             _, outputs = super().compute_loss(model, inputs, return_outputs=True, **kwargs)
