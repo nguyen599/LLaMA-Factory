@@ -300,6 +300,9 @@ def _get_sequence_parallel_dataset(
         load_from_cache_file=(not data_args.overwrite_cache) or (training_args.local_process_index != 0),
         desc="Running sequence parallel split on dataset",
     )
+    # dataset_processor = _get_dataset_processor(
+    #     data_args, stage, template, tokenizer, processor, do_generate=(training_args.predict_with_generate and is_eval)
+    # )
     sp_dataset_func = get_sequence_parallel_preprocess(
         data_args=data_args, model_args=model_args, stage="split", tokenizer=tokenizer
     )
