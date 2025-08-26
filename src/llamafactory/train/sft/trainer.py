@@ -582,7 +582,7 @@ class CustomSeq2SeqTrainer(Seq2SeqTrainer):
             # Enable model parallelism
             labels = labels.to(logits.device)
             # loss = loss_fct(logits, labels)
-            loss = fast_cross_entropy_loss(logits, labels, n_items=num_items_in_batch, **kwargs)
+            loss = fast_cross_entropy_loss(logits, labels, **kwargs)
 
             # weighted reduce within sequence_parallel_group
             sp_group = self.model.sequence_parallel_group
