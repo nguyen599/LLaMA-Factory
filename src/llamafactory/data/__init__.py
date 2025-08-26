@@ -34,4 +34,5 @@ __all__ = [
     "get_dataset",
     "get_template_and_fix_tokenizer",
     "split_dataset",
+    "get_sequence_parallel_preprocess"
 ]

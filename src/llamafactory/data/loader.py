@@ -32,7 +32,7 @@ from .processor import (
     SupervisedDatasetProcessor,
     UnsupervisedDatasetProcessor,
 )
-from .preprocess import get_preprocess_and_print_func, get_sequence_parallel_preprocess
+from .preprocess import get_sequence_parallel_preprocess
 
 if TYPE_CHECKING:
     from datasets import Dataset, IterableDataset
