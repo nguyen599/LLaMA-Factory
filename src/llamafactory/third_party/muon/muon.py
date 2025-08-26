@@ -60,7 +60,10 @@ from collections import deque
 # __version__ = "0.3.0"
 
 # __all__ = ["Muon"]
-
+EPS = 1e-7
+DEFAULT_A = 3.4445
+DEFAULT_B = -4.7750
+DEFAULT_C = 2.0315
 
 def zeropower_via_newtonschulz5(G: "torch.Tensor", steps: int) -> "torch.Tensor":
     """Newton-Schulz iteration to compute the zeroth power / orthogonalization of G.
@@ -89,6 +92,48 @@ def zeropower_via_newtonschulz5(G: "torch.Tensor", steps: int) -> "torch.Tensor"
         X = X.T
     return X
 
+def _zeropower_via_newtonschulz(
+    # grad: torch.Tensor, ns_coefficients: tuple[float, float, float], ns_steps: int, eps=EPS
+    grad: torch.Tensor, ns_steps: int, eps=EPS
+) -> torch.Tensor:
+    """
+    Newton-Schulz iteration to compute the zeroth power / orthogonalization of G. We opt to use a
+    quintic iteration whose coefficients are selected to maximize the slope at zero. For the purpose
+    of minimizing steps, it turns out to be empirically effective to keep increasing the slope at
+    zero even beyond the point where the iteration no longer converges all the way to one everywhere
+    on the interval. This iteration therefore does not produce UV^T but rather something like US'V^T
+    where S' is diagonal with S_{ii}' ~ Uniform(0.5, 1.5), which turns out not to hurt model
+    performance at all relative to UV^T, where USV^T = G is the SVD.
+
+    Implementation reference: https://github.com/KellerJordan/Muon/blob/master/muon.py
+    with suggestions by @jxbz, @leloykun, and @YouJiacheng.
+    """
+    if ns_steps >= 100:
+        raise ValueError(
+            "Number of steps must be less than 100 for computational efficiency"
+        )
+    # if len(grad.shape) != 2:
+    #     raise ValueError("Input tensor gradient must be a 2D matrix")
+    # if len(ns_coefficients) != 3:
+    #     raise ValueError("Coefficients must be a tuple of exactly 3 values")
+    # a, b, c = ns_coefficients
+    a, b, c = (3.4445, -4.7750, 2.0315)
+    ortho_grad = grad.bfloat16()
+    if grad.size(0) > grad.size(1):
+        ortho_grad = ortho_grad.T
+    # Ensure spectral norm is at most 1
+    ortho_grad.div_(ortho_grad.norm().clamp(min=eps))
+    # Perform the NS iterations
+    for _ in range(ns_steps):
+        gram_matrix = ortho_grad @ ortho_grad.T
+        gram_update = torch.addmm(
+            gram_matrix, gram_matrix, gram_matrix, beta=b, alpha=c
+        )
+        ortho_grad = torch.addmm(ortho_grad, gram_update, ortho_grad, beta=a)
+
+    if grad.size(0) > grad.size(1):
+        ortho_grad = ortho_grad.T
+    return ortho_grad
 
 class Muon_old(torch.optim.Optimizer):
     """Muon - MomentUm Orthogonalized by Newton-schulz.
@@ -516,7 +561,15 @@ class Muon(torch.optim.Optimizer):
         params.extend(adamw_params)
         super().__init__(params, defaults)
         # super().__init__(param_groups, dict())
-
+        # Sort parameters into those for which we will use Muon, and those for which we will not
+        for p in muon_params:
+            # Use Muon for every parameter in muon_params which is >= 2D and doesn't look like an embedding or head layer
+            assert p.ndim == 2, p.ndim
+            self.state[p]["use_muon"] = True
+        for p in adamw_params:
+            # Do not use Muon for parameters in adamw_params
+            self.state[p]["use_muon"] = False
+            
     def _get_work_class(self, p: torch.Tensor) -> tuple[type[Work], int]:
         """
         dispatch the work class based on the mesh dimension.
