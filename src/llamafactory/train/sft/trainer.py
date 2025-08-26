@@ -121,7 +121,7 @@ class CustomSeq2SeqTrainer(Seq2SeqTrainer):
             # print(inputs)
             return super().compute_loss(model, inputs, **kwargs)
         else:
-            print(list(inputs.key()))
+            print(list(inputs.keys()))
             print('atten_mask', inputs['attention_mask'].shape, inputs['attention_mask'].dtype)
             print('input_ids', inputs['input_ids'].shape, inputs['input_ids'].dtype)
             # print(dir(inputs))
