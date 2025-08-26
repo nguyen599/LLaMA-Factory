@@ -121,8 +121,9 @@ class CustomSeq2SeqTrainer(Seq2SeqTrainer):
             # print(inputs)
             return super().compute_loss(model, inputs, **kwargs)
         else:
-            print('atten_mask', inputs['attention_mask'].shape)
-            print('input_ids', inputs['input_ids'].shape)
+            print(list(inputs.key()))
+            print('atten_mask', inputs['attention_mask'].shape, inputs['attention_mask'].dtype)
+            print('input_ids', inputs['input_ids'].shape, inputs['input_ids'].dtype)
             # print(dir(inputs))
             # compute loss without shift labels, as we have already shifted labels in data processing when using sequence parallel
             _, outputs = super().compute_loss(model, inputs, return_outputs=True, **kwargs)
