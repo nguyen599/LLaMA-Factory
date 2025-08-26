@@ -116,7 +116,7 @@ class CustomSeq2SeqTrainer(Seq2SeqTrainer):
 
     @override
     def compute_loss(self, model, inputs, return_outputs=False, *args, **kwargs):
-        if model.sequence_parallel_group is None:  # no sequence parallel, compute as it is
+        if self.model.sequence_parallel_group is None:  # no sequence parallel, compute as it is
             return super().compute_loss(model, inputs, **kwargs)
         else:
             # compute loss without shift labels, as we have already shifted labels in data processing when using sequence parallel
