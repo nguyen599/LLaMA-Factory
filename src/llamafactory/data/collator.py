@@ -242,7 +242,7 @@ class SFTDataCollatorWith4DAttentionMask(MultiModalDataCollatorForSeq2Seq):
     require_position_ids: bool = False
 
     def __call__(self, features: list[dict[str, Any]]) -> dict[str, "torch.Tensor"]:
-	if not self.require_position_ids:
+        if not self.require_position_ids:
             features = [{k: v for k, v in d.items() if k != "position_ids"} for d in features]
         features = super().__call__(features)
         if self.block_diag_attn and self.attn_implementation != "flash_attention_2":
