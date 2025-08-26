@@ -656,7 +656,7 @@ class CustomSeq2SeqTrainer(Seq2SeqTrainer):
             pad_len = np.nonzero(preds[i] != self.processing_class.pad_token_id)[0]
             if len(pad_len):  # move pad token to last
                 preds[i] = np.concatenate((preds[i][pad_len[0] :], preds[i][: pad_len[0]]), axis=-1)
-https://github.com/danikhan632/ring-flash-attention.git
+# https://github.com/danikhan632/ring-flash-attention.git
         decoded_inputs = self.processing_class.batch_decode(dataset["input_ids"], skip_special_tokens=False)
         decoded_preds = self.processing_class.batch_decode(preds, skip_special_tokens=skip_special_tokens)
         decoded_labels = self.processing_class.batch_decode(labels, skip_special_tokens=skip_special_tokens)
