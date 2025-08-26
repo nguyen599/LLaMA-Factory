@@ -271,7 +271,9 @@ def _setup_lora_tuning(
                     inference_mode=False,
                     **peft_kwargs,
                 )
-            model = get_peft_model(model, peft_config, autocast_adapter_dtype=False)
+            model = get_peft_model(model, peft_config,
+                                #    autocast_adapter_dtype=False
+                                   )
 
     if is_trainable and cast_trainable_params_to_fp32:
         for param in filter(lambda p: p.requires_grad, model.parameters()):

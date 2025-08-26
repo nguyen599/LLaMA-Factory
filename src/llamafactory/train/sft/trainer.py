@@ -403,6 +403,7 @@ def fast_cross_entropy_loss(
     logit_softcapping = 0,
     logit_scaling = 0,
     n_items = None,
+
 ):
     """
     Arguments:
@@ -461,8 +462,8 @@ def PatchForCausalLMLoss(
     return loss
 
 import transformers.loss.loss_utils
-transformers.loss.loss_utils.ForCausalLMLoss = PatchForCausalLMLoss
-transformers.loss.loss_utils.fixed_cross_entropy = fast_cross_entropy_loss
+# transformers.loss.loss_utils.ForCausalLMLoss = PatchForCausalLMLoss
+# transformers.loss.loss_utils.fixed_cross_entropy = fast_cross_entropy_loss
 
 
 from transformers import Seq2SeqTrainer
