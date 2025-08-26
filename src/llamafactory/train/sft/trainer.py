@@ -452,6 +452,7 @@ def PatchForCausalLMLoss(
     shift_labels: Optional[torch.Tensor] = None,
     **kwargs,
 ) -> torch.Tensor:
+    print('FUCKKKK')
     # Upcast to float if we need to compute the loss to avoid potential precision issues
     logits = logits.float()
 
