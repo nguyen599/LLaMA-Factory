@@ -22,11 +22,16 @@ from typing import TYPE_CHECKING, Any, Optional, Union
 
 import numpy as np
 import torch
+import torch.distributed as dist
+from torch.nn import CrossEntropyLoss
+from torch.utils.data import SequentialSampler
 from transformers import Seq2SeqTrainer
+from transformers.trainer import _is_peft_model
 from typing_extensions import override
 
 from ...extras import logging
 from ...extras.constants import IGNORE_INDEX
+from ...extras.packages import is_transformers_version_equal_to_4_46
 from ...extras.packages import is_transformers_version_greater_than
 from ..callbacks import SaveProcessorCallback
 from ..trainer_utils import create_custom_optimizer, create_custom_scheduler
@@ -98,14 +103,54 @@ class CustomSeq2SeqTrainer(Seq2SeqTrainer):
 
     @override
     def _get_train_sampler(self, *args, **kwargs) -> Optional["torch.utils.data.Sampler"]:
-        if self.finetuning_args.disable_shuffling:
-            return torch.utils.data.SequentialSampler(self.train_dataset)
 
-        return super()._get_train_sampler(*args, **kwargs)
+        if self.model.sequence_parallel_group is not None:
+            return SequentialSampler(self.train_dataset)
+        else:
+	    if self.finetuning_args.disable_shuffling:
+            	return torch.utils.data.SequentialSampler(self.train_dataset)
+            return super()._get_train_sampler(*args, **kwargs)
 
     @override
     def compute_loss(self, model, inputs, *args, **kwargs):
-        return super().compute_loss(model, inputs, *args, **kwargs)
+        if model.sequence_parallel_group is None:  # no sequence parallel, compute as it is
+            return super().compute_loss(model, inputs, **kwargs)
+        else:
+            # compute loss without shift labels, as we have already shifted labels in data processing when using sequence parallel
+            _, outputs = super().compute_loss(model, inputs, return_outputs=True, **kwargs)
+            # Flatten the tokens
+            loss_fct = CrossEntropyLoss(reduction="sum")
+            logits, labels = outputs["logits"] if isinstance(outputs, dict) else outputs[1], inputs["labels"]
+            # Get vocab_size
+            unwrapped_model = self.accelerator.unwrap_model(model)
+            if _is_peft_model(unwrapped_model):
+                vocab_size = unwrapped_model.base_model.model.config.vocab_size
+            else:
+                vocab_size = unwrapped_model.config.vocab_size
+            logits = logits.view(-1, vocab_size)
+            labels = labels.view(-1)
+            # Enable model parallelism
+            labels = labels.to(logits.device)
+            loss = loss_fct(logits, labels)
+
+            # weighted reduce within sequence_parallel_group
+            sp_group = model.sequence_parallel_group
+            loss = dist.nn.all_reduce(loss, op=dist.ReduceOp.SUM, group=sp_group)
+            label_num = (labels != loss_fct.ignore_index).sum()
+            label_num = dist.nn.all_reduce(label_num, op=dist.ReduceOp.SUM, group=sp_group)
+            loss /= label_num
+
+        # now is single-sequence loss
+        # print('loss', loss.shape, loss)
+
+        if is_transformers_version_equal_to_4_46() and not getattr(self, "model_accepts_loss_kwargs", False):
+            # other model should not scale the loss
+            if return_outputs:
+                return (loss[0] / self.args.gradient_accumulation_steps, *loss[1:])
+            else:
+                return loss / self.args.gradient_accumulation_steps
+
+        return loss
 
     @override
     def prediction_step(

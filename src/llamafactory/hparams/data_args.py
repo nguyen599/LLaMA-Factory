@@ -111,6 +111,14 @@ class DataArguments:
         default=False,
         metadata={"help": "Enable sequence packing without cross-attention."},
     )
+    packing_method: Literal["greedy", "random"] = field(
+        default="greedy",
+        metadata={"help": "Strategy for packing"},
+    )
+    drop_exceed_length_data: Optional[bool] = field(
+        default=False,
+        metadata={"help": "drop exceed cutoff length data instead of truncate"},
+    )
     tool_format: Optional[str] = field(
         default=None,
         metadata={"help": "Tool format to use for constructing function calling examples."},
@@ -122,6 +130,16 @@ class DataArguments:
     enable_thinking: Optional[bool] = field(
         default=True,
         metadata={"help": "Whether or not to enable thinking mode for reasoning models."},
+    )
+    shuffle_for_sequence_parallel: bool = field(
+        default=True,
+        metadata={
+            "help": "Shuffle dataset before sequence parallel preprocessing (should shuffle before pad & split)."
+        },
+    )
+    tool_format: Optional[str] = field(
+        default=None,
+        metadata={"help": "Tool format to use for constructing function calling examples."},
     )
     tokenized_path: Optional[str] = field(
         default=None,

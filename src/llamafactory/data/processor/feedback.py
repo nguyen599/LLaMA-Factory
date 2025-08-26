@@ -13,7 +13,7 @@
 # limitations under the License.
 
 from collections import defaultdict
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Tuple
 
 from ...extras import logging
 from ...extras.constants import IGNORE_INDEX
@@ -21,8 +21,11 @@ from .processor_utils import DatasetProcessor, infer_seqlen
 
 
 if TYPE_CHECKING:
-    from ..mm_plugin import AudioInput, ImageInput, VideoInput
+    from transformers import PreTrainedTokenizer, ProcessorMixin
 
+    from ...hparams import DataArguments
+    from ..mm_plugin import AudioInput, ImageInput, VideoInput
+    from ..template import Template
 
 logger = logging.get_logger(__name__)
 
