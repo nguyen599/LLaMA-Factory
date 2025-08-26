@@ -433,7 +433,7 @@ pass
 def patch_loss_functions(torch_compile = True):
     _patch_loss_functions(fast_cross_entropy_loss, torch_compile = torch_compile)
 pass
-# patch_loss_functions()
+patch_loss_functions()
 def PatchForCausalLMLoss(
     logits,
     labels,
@@ -582,7 +582,7 @@ class CustomSeq2SeqTrainer(Seq2SeqTrainer):
             # Enable model parallelism
             labels = labels.to(logits.device)
             # loss = loss_fct(logits, labels)
-            loss = fast_cross_entropy_loss(logits, labels, **kwargs)
+            loss = fast_cross_entropy_loss(logits, labels)
 
             # weighted reduce within sequence_parallel_group
             sp_group = self.model.sequence_parallel_group
