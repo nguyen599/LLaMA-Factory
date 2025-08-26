@@ -570,7 +570,7 @@ class CustomSeq2SeqTrainer(Seq2SeqTrainer):
             _, outputs = super().compute_loss(model, inputs, return_outputs=True, **kwargs)
             # Flatten the tokens
             loss_fct = CrossEntropyLoss(reduction="sum")
-
+            print(outputs)
             logits, labels = outputs["logits"] if isinstance(outputs, dict) else outputs[1], inputs["labels"]
             # Get vocab_size
             unwrapped_model = self.accelerator.unwrap_model(model)
