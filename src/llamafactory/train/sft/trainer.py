@@ -560,7 +560,7 @@ class CustomSeq2SeqTrainer(Seq2SeqTrainer):
         # print('CHECK in compute_loss', self.model.sequence_parallel_group)
         if self.model.sequence_parallel_group is None:  # no sequence parallel, compute as it is
             # print(inputs)
-            print(super().compute_loss(model, inputs, **kwargs))
+            print(super().compute_loss(model, inputs, return_outputs=True, **kwargs))
             return super().compute_loss(model, inputs, **kwargs)
         else:
             # print(list(inputs.keys()))
