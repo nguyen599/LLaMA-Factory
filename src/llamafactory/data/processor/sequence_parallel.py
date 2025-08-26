@@ -20,7 +20,7 @@ def pad_sequence(examples, data_args, tokenizer):
             pad_token_id = 0
         elif k.endswith("position_ids"):
             pad_token_id = max_length - 1  # pad the max position id
-        elif k == "images" or k == "videos":
+        elif k == "images" or k == "videos" or k == "audio":
             pad_token_id = -1
             continue  # TODO: haven't tested multi-modal yet
         else:
