@@ -25,16 +25,6 @@ import torch
 import torch.distributed as dist
 from torch.nn import CrossEntropyLoss
 from torch.utils.data import SequentialSampler
-from transformers import Seq2SeqTrainer
-from transformers.trainer import _is_peft_model
-from typing_extensions import override
-
-from ...extras import logging
-from ...extras.constants import IGNORE_INDEX
-from ...extras.packages import is_transformers_version_equal_to_4_46
-from ...extras.packages import is_transformers_version_greater_than
-from ..callbacks import SaveProcessorCallback
-from ..trainer_utils import create_custom_optimizer, create_custom_scheduler
 
 import triton
 import triton.language as tl
@@ -454,7 +444,7 @@ def PatchForCausalLMLoss(
 ) -> torch.Tensor:
     print('FUCKKKK')
     # Upcast to float if we need to compute the loss to avoid potential precision issues
-    logits = logits.float()
+    logits = logits.float() # ok
 
     if shift_labels is None:
         # Shift so that tokens < n predict n
@@ -473,6 +463,17 @@ import transformers.loss.loss_utils
 transformers.loss.loss_utils.ForCausalLMLoss = PatchForCausalLMLoss
 # transformers.loss.loss_utils.fixed_cross_entropy = fast_cross_entropy_loss
 
+
+from transformers import Seq2SeqTrainer
+from transformers.trainer import _is_peft_model
+from typing_extensions import override
+
+from ...extras import logging
+from ...extras.constants import IGNORE_INDEX
+from ...extras.packages import is_transformers_version_equal_to_4_46
+from ...extras.packages import is_transformers_version_greater_than
+from ..callbacks import SaveProcessorCallback
+from ..trainer_utils import create_custom_optimizer, create_custom_scheduler
 
 if TYPE_CHECKING:
     from torch.utils.data import Dataset
