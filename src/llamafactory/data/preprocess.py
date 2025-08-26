@@ -15,11 +15,11 @@
 from functools import partial
 from typing import TYPE_CHECKING, Callable, Literal, Optional, Tuple
 
-from .processors.feedback import preprocess_feedback_dataset
-from .processors.pairwise import preprocess_pairwise_dataset, print_pairwise_dataset_example
-from .processors.pretrain import preprocess_pretrain_dataset
-from .processors.sequence_parallel import pad_sequence, sp_split
-from .processors.supervised import (
+from .processor.feedback import preprocess_feedback_dataset
+from .processor.pairwise import preprocess_pairwise_dataset, print_pairwise_dataset_example
+from .processor.pretrain import preprocess_pretrain_dataset
+from .processor.sequence_parallel import pad_sequence, sp_split
+from .processor.supervised import (
     preprocess_packed_supervised_dataset,
     preprocess_supervised_dataset,
     print_supervised_dataset_example,
