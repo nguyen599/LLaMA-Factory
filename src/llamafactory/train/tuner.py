@@ -11,10 +11,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-try:
-    import unsloth
-except:
-    pass
+import unsloth
+
 import os
 import shutil
 from typing import TYPE_CHECKING, Any, Optional
