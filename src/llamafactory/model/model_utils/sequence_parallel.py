@@ -84,7 +84,7 @@ def apply_sequence_parallel(model_args, full_determinism=False):
 
             import torch
 
-            from transformers.modeling_flash_attention_utils import flash_attn_supports_top_left_mask
+            from transformers.modeling_flash_attention_utils import flash_attn_supports_top_left_mask, fa_peft_integration_check
 
 
             _use_top_left_mask = flash_attn_supports_top_left_mask()
@@ -109,9 +109,9 @@ def apply_sequence_parallel(model_args, full_determinism=False):
                 query = query.transpose(1, 2)
                 key = key.transpose(1, 2)
                 value = value.transpose(1, 2)
-                print('query', query.dtype)
-                print('key', key.dtype)
-                print('value',value.dtype)
+                # print('query', query.dtype)
+                # print('key', key.dtype)
+                # print('value',value.dtype)
 
                 # In PEFT, usually we cast the layer norms in float32 for training stability reasons
                 # therefore the input hidden states gets silently casted in float32. Hence, we need
@@ -120,16 +120,18 @@ def apply_sequence_parallel(model_args, full_determinism=False):
                 # in fp32. (usually our RMSNorm modules handle it correctly)
                 target_dtype = None
                 if query.dtype == torch.float32:
-                    if torch.is_autocast_enabled() or 1:
+                    if torch.is_autocast_enabled():
                         target_dtype = torch.get_autocast_dtype('cuda')
                     # Handle the case where the model is quantized
                     elif hasattr(module.config, "_pre_quantization_dtype"):
                         target_dtype = module.config._pre_quantization_dtype
                     else:
                         target_dtype = next(layer for layer in module.modules() if isinstance(layer, torch.nn.Linear)).weight.dtype
-                print('query_after', query.dtype)
-                print('key_after', key.dtype)
-                print('value_after',value.dtype)
+                q, k, v = fa_peft_integration_check(q, k, v, target_dtype)
+                # print('query_after', query.dtype)
+                # print('key_after', key.dtype)
+                # print('value_after',value.dtype)
+
                 # FA2 always relies on the value set in the module, so remove it if present in kwargs to avoid passing it twice
                 kwargs.pop("is_causal", None)
 

@@ -143,7 +143,7 @@ class CustomSeq2SeqTrainer(Seq2SeqTrainer):
             loss = loss_fct(logits, labels)
 
             # weighted reduce within sequence_parallel_group
-            sp_group = model.sequence_parallel_group
+            sp_group = self.model.sequence_parallel_group
             loss = dist.nn.all_reduce(loss, op=dist.ReduceOp.SUM, group=sp_group)
             label_num = (labels != loss_fct.ignore_index).sum()
             label_num = dist.nn.all_reduce(label_num, op=dist.ReduceOp.SUM, group=sp_group)
