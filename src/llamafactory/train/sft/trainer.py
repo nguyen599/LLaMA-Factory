@@ -107,8 +107,8 @@ class CustomSeq2SeqTrainer(Seq2SeqTrainer):
         if self.model.sequence_parallel_group is not None:
             return SequentialSampler(self.train_dataset)
         else:
-	    if self.finetuning_args.disable_shuffling:
-            	return torch.utils.data.SequentialSampler(self.train_dataset)
+            if self.finetuning_args.disable_shuffling:
+                return torch.utils.data.SequentialSampler(self.train_dataset)
             return super()._get_train_sampler(*args, **kwargs)
 
     @override
