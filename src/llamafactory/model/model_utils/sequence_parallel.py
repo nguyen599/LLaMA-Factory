@@ -121,7 +121,7 @@ def apply_sequence_parallel(model_args, full_determinism=False):
                 target_dtype = None
                 if query.dtype == torch.float32:
                     if torch.is_autocast_enabled() or 1:
-                        target_dtype = torch.get_autocast_gpu_dtype('cuda')
+                        target_dtype = torch.get_autocast_dtype('cuda')
                     # Handle the case where the model is quantized
                     elif hasattr(module.config, "_pre_quantization_dtype"):
                         target_dtype = module.config._pre_quantization_dtype
