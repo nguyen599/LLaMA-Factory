@@ -53,6 +53,7 @@ class CustomSeq2SeqTrainer(Seq2SeqTrainer):
 
     def __init__(
         self,
+        model,
         finetuning_args: "FinetuningArguments",
         processor: Optional["ProcessorMixin"],
         gen_kwargs: Optional[dict[str, Any]] = None,
@@ -63,7 +64,8 @@ class CustomSeq2SeqTrainer(Seq2SeqTrainer):
         else:
             self.processing_class: PreTrainedTokenizer = kwargs.get("tokenizer")
 
-        super().__init__(**kwargs)
+        super().__init__(model, **kwargs)
+        print('CHECK in CustomSeq2SeqTrainer', model.sequence_parallel_group)
         if processor is not None:
             # avoid wrong loss under gradient accumulation
             # https://github.com/huggingface/transformers/pull/36044#issuecomment-2746657112
