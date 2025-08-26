@@ -120,14 +120,16 @@ def apply_sequence_parallel(model_args, full_determinism=False):
                 # in fp32. (usually our RMSNorm modules handle it correctly)
                 target_dtype = None
                 if query.dtype == torch.float32:
-                    if torch.is_autocast_enabled():
-                        target_dtype = torch.get_autocast_gpu_dtype()
+                    if torch.is_autocast_enabled() or 1:
+                        target_dtype = torch.get_autocast_gpu_dtype('cuda')
                     # Handle the case where the model is quantized
                     elif hasattr(module.config, "_pre_quantization_dtype"):
                         target_dtype = module.config._pre_quantization_dtype
                     else:
                         target_dtype = next(layer for layer in module.modules() if isinstance(layer, torch.nn.Linear)).weight.dtype
-
+                print('query_after', query.dtype)
+                print('key_after', key.dtype)
+                print('value_after',value.dtype)
                 # FA2 always relies on the value set in the module, so remove it if present in kwargs to avoid passing it twice
                 kwargs.pop("is_causal", None)
 
