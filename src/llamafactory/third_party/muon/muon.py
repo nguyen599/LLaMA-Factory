@@ -471,26 +471,51 @@ class Muon(torch.optim.Optimizer):
                 This variant adjust the update so that the RMS match the one of adam, allowing to only have one learning rate for all parameters.
 
     """
-    def __init__(self, param_groups):
-        for group in param_groups:
-            assert "use_muon" in group
-            if group["use_muon"]:
-                # defaults
-                group["lr"] = group.get("lr", 0.02)
-                group["momentum"] = group.get("momentum", 0.95)
-                group["weight_decay"] = group.get("weight_decay", 0)
-                group["rms_scale"] = group.get("rms_scale", True)
-                group["nesterov"] = group.get("nesterov", True)
-                group["ns_steps"] = group.get("ns_steps", 5)
-                assert set(group.keys()) == set(["params", "lr", "momentum", "weight_decay", "use_muon", "rms_scale", "nesterov", "ns_steps"])
-            else:
-                # defaults
-                group["lr"] = group.get("lr", 3e-4)
-                group["betas"] = group.get("betas", (0.9, 0.95))
-                group["eps"] = group.get("eps", 1e-10)
-                group["weight_decay"] = group.get("weight_decay", 0)
-                assert set(group.keys()) == set(["params", "lr", "betas", "eps", "weight_decay", "use_muon"])
-        super().__init__(param_groups, dict())
+    def __init__(self,
+                lr=1e-3,
+                wd=0.1,
+                muon_params=None,
+                momentum=0.95,
+                nesterov=True,
+                ns_steps=5,
+                adamw_params=None,
+                adamw_betas=(0.9, 0.95),
+                adamw_eps=1e-8,
+                #  param_groups=None
+                 ):
+        # for group in param_groups:
+        #     assert "use_muon" in group
+        #     if group["use_muon"]:
+        #         # defaults
+        #         group["lr"] = group.get("lr", 0.02)
+        #         group["momentum"] = group.get("momentum", 0.95)
+        #         group["weight_decay"] = group.get("weight_decay", 0)
+        #         group["rms_scale"] = group.get("rms_scale", True)
+        #         group["nesterov"] = group.get("nesterov", True)
+        #         group["ns_steps"] = group.get("ns_steps", 5)
+        #         assert set(group.keys()) == set(["params", "lr", "momentum", "weight_decay", "use_muon", "rms_scale", "nesterov", "ns_steps"])
+        #     else:
+        #         # defaults
+        #         group["lr"] = group.get("lr", 3e-4)
+        #         group["betas"] = group.get("betas", (0.9, 0.95))
+        #         group["eps"] = group.get("eps", 1e-10)
+        #         group["weight_decay"] = group.get("weight_decay", 0)
+        #         assert set(group.keys()) == set(["params", "lr", "betas", "eps", "weight_decay", "use_muon"])
+        defaults = dict(
+            lr=lr,
+            wd=wd,
+            momentum=momentum,
+            nesterov=nesterov,
+            ns_steps=ns_steps,
+            adamw_betas=adamw_betas,
+            adamw_eps=adamw_eps,
+        )
+
+        params = list(muon_params)
+        adamw_params = list(adamw_params) if adamw_params is not None else []
+        params.extend(adamw_params)
+        super().__init__(params, defaults)
+        # super().__init__(param_groups, dict())
 
     def _get_work_class(self, p: torch.Tensor) -> tuple[type[Work], int]:
         """
