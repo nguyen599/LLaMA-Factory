@@ -560,7 +560,7 @@ class CustomSeq2SeqTrainer(Seq2SeqTrainer):
         # print('CHECK in compute_loss', self.model.sequence_parallel_group)
         if self.model.sequence_parallel_group is None:  # no sequence parallel, compute as it is
             # print(inputs)
-            print(super().compute_loss(model, inputs, return_outputs=True, **kwargs))
+            # print(super().compute_loss(model, inputs, return_outputs=True, **kwargs))
             return super().compute_loss(model, inputs, **kwargs)
         else:
             # print(list(inputs.keys()))
@@ -571,7 +571,7 @@ class CustomSeq2SeqTrainer(Seq2SeqTrainer):
             _, outputs = super().compute_loss(model, inputs, return_outputs=True, **kwargs)
             # Flatten the tokens
             loss_fct = CrossEntropyLoss(reduction="sum")
-            print(outputs)
+            # print(outputs)
             logits, labels = outputs["logits"] if isinstance(outputs, dict) else outputs[1], inputs["labels"]
             # Get vocab_size
             unwrapped_model = self.accelerator.unwrap_model(model)

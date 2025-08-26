@@ -150,7 +150,8 @@ def load_model(
         logger.warning_rank0("Sequence Parallel doesn't support attention_dropout yet. Forcing it to zero.")
         config.attention_dropout = 0.0
 
-    apply_liger_kernel(config, model_args, is_trainable, require_logits=(finetuning_args.stage not in ["pt", "sft"]))
+    # apply_liger_kernel(config, model_args, is_trainable, require_logits=(finetuning_args.stage not in ["pt", "sft"]))
+    apply_liger_kernel(config, model_args, is_trainable, require_logits=True)
     sequence_parallel_group = apply_sequence_parallel(model_args, full_determinism)  # monkey patching, similar to liger_kernel
 
     model = None
