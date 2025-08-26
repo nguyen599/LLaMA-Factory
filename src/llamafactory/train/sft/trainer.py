@@ -503,7 +503,7 @@ class CustomSeq2SeqTrainer(Seq2SeqTrainer):
             kwargs["processing_class"] = kwargs.pop("tokenizer")
         else:
             self.processing_class: PreTrainedTokenizer = kwargs.get("tokenizer")
-        model._loss_function = PatchForCausalLMLoss
+        # model._loss_function = PatchForCausalLMLoss
 
         super().__init__(model, **kwargs)
         print('CHECK in CustomSeq2SeqTrainer', model.sequence_parallel_group)
