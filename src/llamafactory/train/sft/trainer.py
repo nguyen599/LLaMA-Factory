@@ -120,7 +120,7 @@ class CustomSeq2SeqTrainer(Seq2SeqTrainer):
         if self.model.sequence_parallel_group is None:  # no sequence parallel, compute as it is
             return super().compute_loss(model, inputs, **kwargs)
         else:
-            print('input shape', input.shape)
+            print('input', input)
             # compute loss without shift labels, as we have already shifted labels in data processing when using sequence parallel
             _, outputs = super().compute_loss(model, inputs, return_outputs=True, **kwargs)
             # Flatten the tokens
