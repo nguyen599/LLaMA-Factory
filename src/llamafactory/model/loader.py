@@ -237,4 +237,5 @@ def load_model(
             print(f"name: {name}, dtype: {param.dtype}, device: {param.device}, trainable: {param.requires_grad}")
 
     model.sequence_parallel_group = sequence_parallel_group
+    print('CURRENT SP', model.sequence_parallel_group)
     return model

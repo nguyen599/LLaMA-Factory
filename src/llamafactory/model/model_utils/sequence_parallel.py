@@ -143,8 +143,10 @@ def apply_sequence_parallel(model_args, full_determinism=False):
                     target_dtype=target_dtype,
                     **kwargs,
                 )
-
+                
                 return attn_output, None
+        else:
+            print(f'The current transformer version {transformers.__version__} is not supported SP')
 
 
             AttentionInterface.register("sequence_parallel_attention", sequence_parallel_attention)

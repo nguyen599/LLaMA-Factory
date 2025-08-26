@@ -112,7 +112,7 @@ class CustomSeq2SeqTrainer(Seq2SeqTrainer):
             return super()._get_train_sampler(*args, **kwargs)
 
     @override
-    def compute_loss(self, model, inputs, *args, **kwargs):
+    def compute_loss(self, model, inputs, return_outputs=False, *args, **kwargs):
         if model.sequence_parallel_group is None:  # no sequence parallel, compute as it is
             return super().compute_loss(model, inputs, **kwargs)
         else:
