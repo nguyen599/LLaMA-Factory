@@ -109,6 +109,9 @@ def apply_sequence_parallel(model_args, full_determinism=False):
                 query = query.transpose(1, 2)
                 key = key.transpose(1, 2)
                 value = value.transpose(1, 2)
+                print('query', query.dtype)
+                print('key', key.dtype)
+                print('value',value.dtype)
 
                 # In PEFT, usually we cast the layer norms in float32 for training stability reasons
                 # therefore the input hidden states gets silently casted in float32. Hence, we need
@@ -145,7 +148,7 @@ def apply_sequence_parallel(model_args, full_determinism=False):
                 )
 
                 return attn_output, None
-            
+
             AttentionInterface.register("sequence_parallel_attention", sequence_parallel_attention)
         else:
             print(f'The current transformer version {transformers.__version__} is not supported SP')
