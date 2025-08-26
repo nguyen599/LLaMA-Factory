@@ -127,7 +127,7 @@ def apply_sequence_parallel(model_args, full_determinism=False):
                         target_dtype = module.config._pre_quantization_dtype
                     else:
                         target_dtype = next(layer for layer in module.modules() if isinstance(layer, torch.nn.Linear)).weight.dtype
-                q, k, v = fa_peft_integration_check(q, k, v, target_dtype)
+                query, key, value = fa_peft_integration_check(query, key, value, target_dtype)
                 # print('query_after', query.dtype)
                 # print('key_after', key.dtype)
                 # print('value_after',value.dtype)
