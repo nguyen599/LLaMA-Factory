@@ -105,6 +105,7 @@ class CustomSeq2SeqTrainer(Seq2SeqTrainer):
     def _get_train_sampler(self, *args, **kwargs) -> Optional["torch.utils.data.Sampler"]:
 
         if self.model.sequence_parallel_group is not None:
+            print('Get SP in _get_train_sampler')
             return SequentialSampler(self.train_dataset)
         else:
             if self.finetuning_args.disable_shuffling:
