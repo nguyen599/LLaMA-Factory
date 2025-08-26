@@ -121,6 +121,7 @@ class CustomSeq2SeqTrainer(Seq2SeqTrainer):
             return super().compute_loss(model, inputs, **kwargs)
         else:
             print('input', input)
+            print(dir(input))
             # compute loss without shift labels, as we have already shifted labels in data processing when using sequence parallel
             _, outputs = super().compute_loss(model, inputs, return_outputs=True, **kwargs)
             # Flatten the tokens
