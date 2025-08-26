@@ -30,6 +30,7 @@ import triton
 import triton.language as tl
 import torch
 from torch import nn
+
 from unsloth.kernels.utils import (
     calculate_settings,
     MAX_FUSED_SIZE,
@@ -432,7 +433,7 @@ pass
 def patch_loss_functions(torch_compile = True):
     _patch_loss_functions(fast_cross_entropy_loss, torch_compile = torch_compile)
 pass
-
+patch_loss_functions()
 def PatchForCausalLMLoss(
     logits,
     labels,
@@ -502,7 +503,7 @@ class CustomSeq2SeqTrainer(Seq2SeqTrainer):
         else:
             self.processing_class: PreTrainedTokenizer = kwargs.get("tokenizer")
         model._loss_function = PatchForCausalLMLoss
-        
+
         super().__init__(model, **kwargs)
         print('CHECK in CustomSeq2SeqTrainer', model.sequence_parallel_group)
         if processor is not None:

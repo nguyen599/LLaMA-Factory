@@ -146,7 +146,7 @@ def prepare_model_for_training(model: "PreTrainedModel", model_args: "ModelArgum
     (2) make output embedding layer require grads
     (3) add the upcasting of the lm_head in fp32.
     """
-    return
+    # return
     if model_args.upcast_layernorm:
         logger.info_rank0("Upcasting layernorm weights in float32.")
         for name, param in model.named_parameters():
