@@ -135,7 +135,7 @@ def _zeropower_via_newtonschulz(
         ortho_grad = ortho_grad.T
     return ortho_grad
 
-class Muon_old(torch.optim.Optimizer):
+class Muon(torch.optim.Optimizer):
     """Muon - MomentUm Orthogonalized by Newton-schulz.
 
     Muon internally runs standard SGD-momentum, and then performs an orthogonalization post-
@@ -476,7 +476,7 @@ class SingelDeviceWork:
         pass
 
 
-class Muon(torch.optim.Optimizer):
+class Muon_new(torch.optim.Optimizer):
     """
     DTensor variant of Muon, original code https://github.com/KellerJordan/Muon/blob/f90a42b28e00b8d9d2d05865fe90d9f39abcbcbd/muon.py
     also support single device variant.
@@ -569,7 +569,7 @@ class Muon(torch.optim.Optimizer):
         for p in adamw_params:
             # Do not use Muon for parameters in adamw_params
             self.state[p]["use_muon"] = False
-            
+
     def _get_work_class(self, p: torch.Tensor) -> tuple[type[Work], int]:
         """
         dispatch the work class based on the mesh dimension.
