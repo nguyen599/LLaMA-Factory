@@ -9,6 +9,8 @@ import transformers
 from ring_flash_attn import zigzag_ring_flash_attn_func
 from .ulysses import UlyssesAttention
 from ...extras.packages import is_transformers_version_greater_than
+# from yunchang import UlyssesAttention
+# from yunchang.kernels import AttnType
 
 def new_flash_attn_forward(
     query_states,
