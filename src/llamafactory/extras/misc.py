@@ -116,7 +116,7 @@ def calculate_tps(dataset: list[dict[str, Any]], metrics: dict[str, float], stag
 
 def count_parameters(model: "torch.nn.Module") -> tuple[int, int]:
     r"""Return the number of trainable parameters and number of all parameters in the model."""
-    trainable_params, all_param = 0, 0
+    trainable_params, all_param = 0, 1
     for param in model.parameters():
         num_params = param.numel()
         # if using DS Zero 3 and the weights are initialized empty
