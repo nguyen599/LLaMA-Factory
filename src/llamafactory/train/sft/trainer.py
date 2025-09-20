@@ -586,11 +586,13 @@ class CustomSeq2SeqTrainer(Seq2SeqTrainer):
             # print('input_ids', inputs['input_ids'].shape, inputs['input_ids'].dtype)
             # print(dir(inputs))
             # compute loss without shift labels, as we have already shifted labels in data processing when using sequence parallel
+            labels = inputs["labels"]
             _, outputs = super().compute_loss(model, inputs, return_outputs=True, **kwargs)
             # Flatten the tokens
             loss_fct = CrossEntropyLoss(reduction="sum")
             # print(outputs)
-            logits, labels = outputs["logits"] if isinstance(outputs, dict) else outputs[1], inputs["labels"]
+            # logits, labels = outputs["logits"] if isinstance(outputs, dict) else outputs[1], inputs["labels"]
+            logits = outputs["logits"] if isinstance(outputs, dict) else outputs[1]
             # Get vocab_size
             unwrapped_model = self.accelerator.unwrap_model(model)
             if _is_peft_model(unwrapped_model):
