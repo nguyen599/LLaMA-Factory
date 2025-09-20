@@ -25,6 +25,7 @@ import torch
 import torch.distributed as dist
 from torch.nn import CrossEntropyLoss
 from torch.utils.data import SequentialSampler
+from monkeypatch.loss.chunked import patch_chunked_ce_loss_fn
 
 # import triton
 # import triton.language as tl
@@ -461,10 +462,9 @@ from torch.utils.data import SequentialSampler
 #     loss = fast_cross_entropy_loss(logits, shift_labels, n_items=num_items_in_batch, **kwargs)
 #     return loss
 
-import transformers.loss.loss_utils
+# import transformers.loss.loss_utils
 # transformers.loss.loss_utils.ForCausalLMLoss = PatchForCausalLMLoss
 # transformers.loss.loss_utils.fixed_cross_entropy = fast_cross_entropy_loss
-
 
 from transformers import Seq2SeqTrainer
 from transformers.trainer import _is_peft_model
@@ -487,6 +487,8 @@ if TYPE_CHECKING:
 
 logger = logging.get_logger(__name__)
 
+patch_chunked_ce_loss_fn()
+logger.info_rank0('Patch CE Loss -> chunked CE Loss to reduce vram')
 
 class CustomSeq2SeqTrainer(Seq2SeqTrainer):
     r"""Inherits Seq2SeqTrainer to compute generative metrics such as BLEU and ROUGE."""
