@@ -25,7 +25,7 @@ import torch
 import torch.distributed as dist
 from torch.nn import CrossEntropyLoss
 from torch.utils.data import SequentialSampler
-from monkeypatch.loss.chunked import patch_chunked_ce_loss_fn
+
 
 # import triton
 # import triton.language as tl
@@ -474,6 +474,7 @@ from ...extras import logging
 from ...extras.constants import IGNORE_INDEX
 from ...extras.packages import is_transformers_version_equal_to_4_46
 from ...extras.packages import is_transformers_version_greater_than
+from ...monkeypatch.loss.chunked import patch_chunked_ce_loss_fn
 from ..callbacks import SaveProcessorCallback
 from ..trainer_utils import create_custom_optimizer, create_custom_scheduler
 
