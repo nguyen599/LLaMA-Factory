@@ -546,7 +546,8 @@ class CustomSeq2SeqTrainer(Seq2SeqTrainer):
             from ..trainer_utils import cce_loss_func
 
             self.compute_loss_func = cce_loss_func
-            logger.info_rank0("Cut Cross-Entropy enabled: using memory-efficient loss on standard SFT path.")
+            self.model_accepts_loss_kwargs = True
+            logger.info_rank0("Cut Cross-Entropy enabled: using memory-efficient loss on standard SFT path and set self.model_accepts_loss_kwargs = True.")
 
 
     @override
@@ -587,6 +588,8 @@ class CustomSeq2SeqTrainer(Seq2SeqTrainer):
             # print(dir(inputs))
             # compute loss without shift labels, as we have already shifted labels in data processing when using sequence parallel
             labels = inputs["labels"]
+            if self.finetuning_args.use_cce:
+                kwargs["output_hidden_states"] = True
             _, outputs = super().compute_loss(model, inputs, return_outputs=True, **kwargs)
             # Flatten the tokens
             loss_fct = CrossEntropyLoss(reduction="sum")
