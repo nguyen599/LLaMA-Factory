@@ -467,8 +467,10 @@ from torch.utils.data import SequentialSampler
 # transformers.loss.loss_utils.fixed_cross_entropy = fast_cross_entropy_loss
 
 from transformers import Seq2SeqTrainer
+from transformers.models.auto.modeling_auto import MODEL_FOR_CAUSAL_LM_MAPPING_NAMES
 from transformers.trainer import _is_peft_model
 from typing_extensions import override
+from torch import nn
 
 from ...extras import logging
 from ...extras.constants import IGNORE_INDEX
@@ -546,8 +548,7 @@ class CustomSeq2SeqTrainer(Seq2SeqTrainer):
             from ..trainer_utils import cce_loss_func
 
             self.compute_loss_func = cce_loss_func
-            self.model_accepts_loss_kwargs = True
-            logger.info_rank0("Cut Cross-Entropy enabled: using memory-efficient loss on standard SFT path and set self.model_accepts_loss_kwargs = True.")
+            logger.info_rank0("Cut Cross-Entropy enabled: using memory-efficient loss on standard SFT path.")
 
 
     @override
@@ -574,6 +575,78 @@ class CustomSeq2SeqTrainer(Seq2SeqTrainer):
                 return torch.utils.data.SequentialSampler(self.train_dataset)
             return super()._get_train_sampler(*args, **kwargs)
 
+    def compute_loss_cce(
+        self,
+        model: nn.Module,
+        inputs: dict[str, Union[torch.Tensor, Any]],
+        return_outputs: bool = False,
+        num_items_in_batch: Optional[torch.Tensor] = None,
+    ):
+        """
+        How the loss is computed by Trainer. By default, all models return the loss in the first element.
+
+        Args:
+            model (`nn.Module`):
+                The model to compute the loss for.
+            inputs (`dict[str, Union[torch.Tensor, Any]]`):
+                The input data for the model.
+            return_outputs (`bool`, *optional*, defaults to `False`):
+                Whether to return the model outputs along with the loss.
+            num_items_in_batch (Optional[torch.Tensor], *optional*):
+                The number of items in the batch. If num_items_in_batch is not passed,
+
+        Returns:
+            The loss of the model along with its output if return_outputs was set to True
+
+        Subclass and override for custom behavior. If you are not using `num_items_in_batch` when computing your loss,
+        make sure to overwrite `self.model_accepts_loss_kwargs` to `False`. Otherwise, the loss calculationg might be slightly inacurate when performing gradient accumulation.
+        """
+        if (self.label_smoother is not None or self.compute_loss_func is not None) and "labels" in inputs:
+            labels = inputs.pop("labels")
+        else:
+            labels = None
+        if self.model_accepts_loss_kwargs:
+            kwargs = {}
+            if num_items_in_batch is not None:
+                kwargs["num_items_in_batch"] = num_items_in_batch
+            inputs = {**inputs, **kwargs}
+        outputs = model(**inputs, output_hidden_states=True)
+        # Save past state if it exists
+        # TODO: this needs to be fixed and made cleaner later.
+        if self.args.past_index >= 0:
+            self._past = outputs[self.args.past_index]
+
+        if labels is not None:
+            unwrapped_model = self.accelerator.unwrap_model(model)
+            if _is_peft_model(unwrapped_model):
+                model_name = unwrapped_model.base_model.model._get_name()
+            else:
+                model_name = unwrapped_model._get_name()
+            # User-defined compute_loss function
+            if self.compute_loss_func is not None:
+                loss = self.compute_loss_func(outputs, labels, num_items_in_batch=num_items_in_batch)
+            elif model_name in MODEL_FOR_CAUSAL_LM_MAPPING_NAMES.values():
+                loss = self.label_smoother(outputs, labels, shift_labels=True)
+            else:
+                loss = self.label_smoother(outputs, labels)
+        else:
+            if isinstance(outputs, dict) and "loss" not in outputs:
+                raise ValueError(
+                    "The model did not return a loss from the inputs, only the following keys: "
+                    f"{','.join(outputs.keys())}. For reference, the inputs it received are {','.join(inputs.keys())}."
+                )
+            # We don't use .loss here since the model may return tuples instead of ModelOutput.
+            loss = outputs["loss"] if isinstance(outputs, dict) else outputs[0]
+
+        if (
+            self.args.average_tokens_across_devices
+            and (self.model_accepts_loss_kwargs or self.compute_loss_func)
+            and num_items_in_batch is not None
+        ):
+            loss *= self.accelerator.num_processes
+
+        return (loss, outputs) if return_outputs else loss
+
     @override
     def compute_loss(self, model, inputs, return_outputs=False, *args, **kwargs):
         # print('CHECK in compute_loss', self.model.sequence_parallel_group)
@@ -589,8 +662,9 @@ class CustomSeq2SeqTrainer(Seq2SeqTrainer):
             # compute loss without shift labels, as we have already shifted labels in data processing when using sequence parallel
             labels = inputs["labels"]
             if self.finetuning_args.use_cce:
-                kwargs["output_hidden_states"] = True
-            _, outputs = super().compute_loss(model, inputs, return_outputs=True, **kwargs)
+                _, outputs = self.compute_loss_cce(model, inputs, return_outputs=True, **kwargs)
+            else:
+                _, outputs = super().compute_loss(model, inputs, return_outputs=True, **kwargs)
             # Flatten the tokens
             loss_fct = CrossEntropyLoss(reduction="sum")
             # print(outputs)
