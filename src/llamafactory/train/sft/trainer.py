@@ -534,6 +534,21 @@ class CustomSeq2SeqTrainer(Seq2SeqTrainer):
 
             self.compute_loss_func = dft_loss_func
 
+        # Optional Cut Cross-Entropy support for memory-efficient loss
+        if finetuning_args.use_cce:
+            from ...extras.packages import is_cce_available
+
+            if not is_cce_available():
+                raise ImportError(
+                    "Cut Cross-Entropy is not available. Install with: "
+                    "pip install 'cut-cross-entropy @ git+https://github.com/apple/ml-cross-entropy.git'"
+                )
+            from ..trainer_utils import cce_loss_func
+
+            self.compute_loss_func = cce_loss_func
+            logger.info_rank0("Cut Cross-Entropy enabled: using memory-efficient loss on standard SFT path.")
+
+
     @override
     def create_optimizer(self) -> "torch.optim.Optimizer":
         if self.optimizer is None:

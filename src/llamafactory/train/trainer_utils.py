@@ -62,6 +62,9 @@ if TYPE_CHECKING:
 
 logger = logging.get_logger(__name__)
 
+# One-time backend logging switches for CCE
+_cce_backend_logged: int = 0  # 0=unset, 1=cce_backend, 2=fallback
+
 
 class DummyOptimizer(torch.optim.Optimizer):
     r"""A dummy optimizer used for the GaLore or APOLLO algorithm."""
@@ -650,6 +653,81 @@ def dft_loss_func(outputs, labels, num_items_in_batch=None):
     return loss
 
 
+def cce_loss_func(outputs, labels, num_items_in_batch=None):
+    """Compute loss using Cut Cross-Entropy if available; otherwise fallback to standard CE.
+
+    This mirrors the interface of `dft_loss_func` so it can be plugged into
+    the trainer via `self.compute_loss_func`.
+    """
+    logits = outputs.get("logits")
+    if logits is None:
+        # Some models may only return loss
+        return outputs.get("loss", torch.tensor(0.0))
+
+    # Shift labels to align with next-token prediction
+    labels = torch.nn.functional.pad(labels, (0, 1), value=-100)
+    shift_labels = labels[..., 1:].contiguous()
+
+    # Prefer the memory-efficient op when the optional package is present
+    global _cce_backend_logged
+    try:
+        from cut_cross_entropy import linear_cross_entropy  # type: ignore
+
+        # Use logits and lm_head weight when possible to avoid materializing full probs
+        # We expect models to expose last hidden states through outputs.get("hidden_states")
+        # only when configured; otherwise we can still use logits fallback.
+        embeddings = outputs.get("hidden_states", None)
+        classifier = None
+
+        # Try to find the classifier (lm_head) weight on the model if attached
+        model = outputs.get("model", None)
+        if model is not None:
+            for name, module in model.named_modules():
+                if "lm_head" in name and hasattr(module, "weight"):
+                    classifier = module.weight
+                    break
+
+        if embeddings is not None and classifier is not None:
+            if isinstance(embeddings, (list, tuple)):
+                embeddings = embeddings[-1]
+
+            # Remove the last timestep to align with shift_labels
+            hidden = embeddings[:, :-1]
+            loss = linear_cross_entropy(
+                hidden,
+                classifier,
+                shift_labels.reshape(-1),
+                ignore_index=-100,
+                reduction="mean",
+            )
+            if _cce_backend_logged == 0:
+                logger.info_rank0("CCE backend active: using cut_cross_entropy.linear_cross_entropy")
+                _cce_backend_logged = 1
+            if num_items_in_batch is not None:
+                # Keep parity with dft_loss_func optional normalization path
+                loss = loss * shift_labels.numel() / num_items_in_batch
+            return loss
+    except Exception:
+        # Package missing or model introspection failed; fall back below
+        if _cce_backend_logged == 0:
+            logger.info_rank0(
+                "CCE fallback: standard torch.nn.functional.cross_entropy will be used ("
+                "package missing or model lacks hidden_states/lm_head)."
+            )
+            _cce_backend_logged = 2
+
+    # Fallback: standard cross-entropy over flattened logits
+    logits = logits.float()
+    vocab_size = logits.size(-1)
+    logits = logits.view(-1, vocab_size)
+    shift_labels = shift_labels.view(-1).to(logits.device)
+
+    loss = torch.nn.functional.cross_entropy(logits, shift_labels, ignore_index=-100, reduction="mean")
+    if num_items_in_batch is not None:
+        loss = loss * shift_labels.numel() / num_items_in_batch
+    return loss
+
+
 def _dft_cross_entropy(
     source: torch.Tensor,
     target: torch.Tensor,
@@ -776,3 +854,244 @@ def get_ray_trainer(
         ),
     )
     return trainer
+
+
+def get_sequence_parallel_group(
+    model: "torch.nn.Module", accelerator: Optional[Any] = None
+) -> Optional["dist.ProcessGroup"]:
+    """Get sequence parallel group from model, handling DDP wrapping.
+
+    Args:
+        model: The model (potentially wrapped by DDP/FSDP)
+        accelerator: Optional accelerator for unwrapping
+
+    Returns:
+        Sequence parallel process group if available, None otherwise
+    """
+    # Try to unwrap the model if accelerator is available
+    if accelerator is not None:
+        try:
+            unwrapped_model = accelerator.unwrap_model(model)
+            return getattr(unwrapped_model, "sequence_parallel_group", None)
+        except Exception:
+            pass
+
+    # Fallback: try direct access and common wrapper patterns
+    if hasattr(model, "sequence_parallel_group"):
+        return getattr(model, "sequence_parallel_group", None)
+
+    # Handle common wrapper patterns
+    for attr in ["module", "_orig_mod", "_modules"]:
+        if hasattr(model, attr):
+            wrapped_model = getattr(model, attr)
+            if hasattr(wrapped_model, "sequence_parallel_group"):
+                return getattr(wrapped_model, "sequence_parallel_group", None)
+
+    return None
+
+
+def update_alst_adapter_with_model(
+    alst_data_adapter: Optional[Any], model: "torch.nn.Module", accelerator: Optional[Any] = None
+) -> None:
+    """Update ALST data adapter with sequence parallel group from model.
+
+    Args:
+        alst_data_adapter: ALST data adapter instance
+        model: The model (potentially wrapped)
+        accelerator: Optional accelerator for unwrapping
+    """
+    if alst_data_adapter is not None:
+        sp_group = get_sequence_parallel_group(model, accelerator)
+        logger.info_rank0(f"Updating ALST adapter with sequence parallel group: {sp_group}")
+        logger.info_rank0(f"Model type: {type(model)}")
+        logger.info_rank0(f"Model has sequence_parallel_group attr: {hasattr(model, 'sequence_parallel_group')}")
+        if hasattr(model, "sequence_parallel_group"):
+            logger.info_rank0(
+                f"Model sequence_parallel_group value: {getattr(model, 'sequence_parallel_group', None)}"
+            )
+
+        if sp_group is not None:
+            alst_data_adapter.sp_group = sp_group
+            logger.info_rank0("Successfully updated ALST data adapter with sequence parallel group")
+        else:
+            logger.warning("No sequence parallel group found in model - ALST adapter will not be enabled")
+
+
+def get_attention_heads_from_model(model: "torch.nn.Module") -> Optional[int]:
+    """Extract attention heads programmatically from model configuration.
+
+    Args:
+        model: The model (potentially wrapped by DDP/FSDP/PEFT)
+
+    Returns:
+        Number of attention heads if found, None otherwise
+    """
+    if model is None:
+        return None
+
+    try:
+        # Debug the type and structure of the model
+        logger.debug(f"Model type: {type(model)}")
+
+        # Check if model is actually a dictionary (shouldn't happen, but let's be defensive)
+        if isinstance(model, dict):
+            logger.warning_rank0(
+                f"Expected torch.nn.Module but got dict: {list(model.keys()) if model else 'empty dict'}"
+            )
+            return None
+
+        # Unwrap model through various wrapper layers
+        unwrapped_model = model
+
+        # Handle DDP/FSDP wrapping
+        if hasattr(unwrapped_model, "module"):
+            unwrapped_model = unwrapped_model.module
+
+        # Handle PEFT wrapping
+        if hasattr(unwrapped_model, "base_model"):
+            unwrapped_model = unwrapped_model.base_model
+            if hasattr(unwrapped_model, "model"):
+                unwrapped_model = unwrapped_model.model
+
+        # Handle additional wrapper patterns (avoid getting dictionaries)
+        for attr in ["_orig_mod"]:
+            if hasattr(unwrapped_model, attr):
+                candidate = getattr(unwrapped_model, attr)
+                # Only use if it's actually a model, not a dict or other type
+                if hasattr(candidate, "__class__") and hasattr(candidate, "config"):
+                    unwrapped_model = candidate
+                    break
+
+        # Verify we have a config attribute before accessing it
+        if not hasattr(unwrapped_model, "config"):
+            logger.warning_rank0(f"Model {type(unwrapped_model)} has no config attribute")
+            return None
+
+        config = unwrapped_model.config
+
+        # Verify config is not None and has attributes
+        if config is None:
+            logger.warning_rank0("Model config is None")
+            return None
+
+        # Try common config attribute names for attention heads
+        attention_head_attrs = [
+            "num_attention_heads",  # Most common (LLaMA, Qwen, etc.)
+            "n_head",  # GPT-style models
+            "num_heads",  # Alternative naming
+            "attention_heads",  # Direct naming
+            "n_heads",  # Another variant
+        ]
+
+        for attr in attention_head_attrs:
+            if hasattr(config, attr):
+                num_heads = getattr(config, attr)
+                logger.info_rank0(f"Detected {num_heads} attention heads from model.config.{attr}")
+                return num_heads
+
+        logger.info_rank0("Could not detect attention heads from model config")
+        return None
+
+    except Exception as e:
+        logger.warning_rank0(f"Failed to detect attention heads: {e}")
+        return None
+
+
+def get_optimal_pad_multiple(
+    model: "torch.nn.Module",
+    model_args: "ModelArguments",
+    data_args: "DataArguments",
+    training_args: "TrainingArguments",
+) -> Optional[int]:
+    """Determine optimal padding multiple based on model config and training setup.
+
+    Only applies smart detection when pad_to_multiple_of is 'auto' or None.
+    For manual values, returns them directly.
+
+    Args:
+        model: The model instance
+        model_args: Model configuration arguments
+        data_args: Data configuration arguments
+        training_args: Training configuration arguments
+
+    Returns:
+        Optimal padding multiple, or None to disable padding
+    """
+    # Manual override - use exact value specified
+    if data_args.pad_to_multiple_of is not None and data_args.pad_to_multiple_of != "auto":
+        if isinstance(data_args.pad_to_multiple_of, str):
+            try:
+                return int(data_args.pad_to_multiple_of)
+            except ValueError:
+                logger.warning_rank0(
+                    f"Invalid pad_to_multiple_of value: {data_args.pad_to_multiple_of}, using auto-detection"
+                )
+        else:
+            return data_args.pad_to_multiple_of
+
+    # Smart auto-detection mode
+    optimal = 8  # Conservative fallback
+
+    # FP8 requirements (16 for TorchAO backend)
+    if getattr(model_args, "fp8", False):
+        backend = getattr(model_args, "fp8_backend", "auto")
+        if backend in ["torchao", "auto"]:
+            optimal = max(optimal, 16)
+            logger.debug(f"FP8 training with {backend} backend detected, setting minimum padding to 16")
+
+    # Programmatic attention head detection from model config
+    attention_heads = get_attention_heads_from_model(model)
+    if attention_heads:
+        # Use the number of attention heads for optimal memory alignment
+        optimal = max(optimal, attention_heads)
+        logger.debug(f"Using {attention_heads} attention heads for padding alignment")
+
+    # Sequence parallel compatibility
+    if getattr(model_args, "sequence_parallel_size", 1) > 1:
+        ulysses_degree = getattr(model_args, "alst_ulysses_degree", model_args.sequence_parallel_size)
+        # Recommend force padding for sequence parallelism
+        logger.info_rank0(
+            f"Sequence parallelism detected (size={model_args.sequence_parallel_size}). "
+            f"For optimal ALST performance, consider using force_sequence_length_padding: true"
+        )
+        # Ensure optimal is compatible with ulysses degree
+        while optimal % ulysses_degree != 0:
+            optimal += 8
+        logger.debug(f"Adjusted padding for sequence parallel compatibility: ulysses_degree={ulysses_degree}")
+
+    logger.info_rank0(f"Auto-detected optimal pad_to_multiple_of: {optimal}")
+    return optimal
+
+
+def validate_padding_config(optimal_padding: Optional[int], model_args: "ModelArguments") -> None:
+    """Validate padding configuration and provide helpful warnings.
+
+    Args:
+        optimal_padding: The padding multiple being used
+        model_args: Model configuration arguments
+    """
+    if optimal_padding is None:
+        return
+
+    # FP8 compatibility warning
+    if getattr(model_args, "fp8", False) and optimal_padding % 16 != 0:
+        logger.warning_rank0(
+            f"FP8 training with pad_to_multiple_of={optimal_padding} may be suboptimal. "
+            f"Consider using a multiple of 16 for TorchAO backend."
+        )
+
+    # Sequence parallel compatibility warning
+    if getattr(model_args, "sequence_parallel_size", 1) > 1:
+        ulysses_degree = getattr(model_args, "alst_ulysses_degree", model_args.sequence_parallel_size)
+        if optimal_padding % ulysses_degree != 0:
+            logger.warning_rank0(
+                f"Sequence parallel training may be suboptimal with pad_to_multiple_of={optimal_padding}. "
+                f"Consider using a multiple of {ulysses_degree}."
+            )
+
+    # General efficiency warning for very small values
+    if optimal_padding < 8:
+        logger.warning_rank0(
+            f"pad_to_multiple_of={optimal_padding} is quite small and may not provide optimal performance. "
+            f"Consider using at least 8 for better memory alignment."
+        )
