@@ -490,6 +490,9 @@ if TYPE_CHECKING:
 
 logger = logging.get_logger(__name__)
 
+# One-time backend logging switches for CCE
+_cce_backend_logged: int = 0  # 0=unset, 1=cce_backend, 2=fallback
+
 patch_chunked_ce_loss_fn()
 logger.info_rank0('Patch CE Loss -> chunked CE Loss to reduce vram')
 
