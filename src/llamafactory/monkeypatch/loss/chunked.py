@@ -20,9 +20,8 @@ from ..unsloth.kernels.utils import (
     torch_gpu_device,
 )
 
-from unsloth_zoo.loss_utils import (
+from ..unsloth_zoo.loss_utils import (
     patch_loss_functions as _patch_loss_functions,
-    post_patch_loss_function,
 )
 # except:
 #     pass
