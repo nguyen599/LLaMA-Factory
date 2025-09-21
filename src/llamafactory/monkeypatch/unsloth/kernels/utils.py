@@ -18,12 +18,35 @@ MAX_FUSED_SIZE : int = 65536
 next_power_of_2 = triton.next_power_of_2
 import functools
 from typing import Optional
-from unsloth import DEVICE_TYPE, DEVICE_COUNT
 
 # torch.cuda.amp.custom_fwd is deprecated >= 2.4
 import torch
 torch_Tensor = torch.Tensor
 from packaging.version import Version
+
+@functools.cache
+def get_device_type():
+    if hasattr(torch, "cuda") and torch.cuda.is_available():
+        if is_hip():
+            return "hip"
+        return "cuda"
+    elif hasattr(torch, "xpu") and torch.xpu.is_available():
+        return "xpu"
+    raise NotImplementedError("Unsloth currently only works on NVIDIA GPUs and Intel GPUs.")
+pass
+DEVICE_TYPE : str = get_device_type()
+
+@functools.cache
+def get_device_count():
+    if DEVICE_TYPE in ("cuda", "hip"):
+        return torch.cuda.device_count()
+    elif DEVICE_TYPE == "xpu":
+        return torch.xpu.device_count()
+    else:
+        return 1
+pass
+
+DEVICE_COUNT : int = get_device_count()
 
 if DEVICE_TYPE == "xpu" and Version(torch.__version__) < Version("2.6.0"):
     raise RuntimeError("Intel xpu currently supports unsloth with torch.version >= 2.6.0")
