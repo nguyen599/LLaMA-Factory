@@ -25,6 +25,11 @@ torch_Tensor = torch.Tensor
 from packaging.version import Version
 
 @functools.cache
+def is_hip():
+    return bool(getattr(getattr(torch, "version", None), "hip", None))
+pass
+
+@functools.cache
 def get_device_type():
     if hasattr(torch, "cuda") and torch.cuda.is_available():
         if is_hip():
