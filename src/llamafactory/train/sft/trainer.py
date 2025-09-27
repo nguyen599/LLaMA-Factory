@@ -59,7 +59,7 @@ if 0:
     logger.info_rank0('Patch CE Loss -> chunked CE Loss to reduce vram')
 else:
     unsolth_patch_loss_functions()
-    logger.info_rank0('Patch CE Loss -> Unsolth chunked CE Loss to reduce vram')
+    logger.info_rank0('Patch CE Loss -> Unsloth chunked CE Loss to reduce vram')
 
 class CustomSeq2SeqTrainer(Seq2SeqTrainer):
     r"""Inherits Seq2SeqTrainer to compute generative metrics such as BLEU and ROUGE."""

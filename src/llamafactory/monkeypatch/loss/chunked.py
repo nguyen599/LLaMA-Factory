@@ -8,7 +8,6 @@ import torch
 import torch.nn.functional as F
 import triton
 import triton.language as tl
-import torch
 
 # try:
 
@@ -23,10 +22,7 @@ from ..unsloth.kernels.utils import (
 from ..unsloth_zoo.loss_utils import (
     patch_loss_functions as _patch_loss_functions,
 )
-# except:
-#     pass
 
-from transformers.models.llama.modeling_llama import logger
 from packaging.version import Version
 
 def _cross_entropy_forward(

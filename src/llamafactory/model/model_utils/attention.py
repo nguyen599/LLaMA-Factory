@@ -85,4 +85,4 @@ def print_attn_implementation(config: "PretrainedConfig") -> None:
     elif attn_implementation == "sdpa":
         logger.info_rank0("Using torch SDPA for faster training and inference.")
     else:
-        logger.info_rank0("Using vanilla attention implementation.")
+        logger.info_rank0(f"Using vanilla attention implementation {attn_implementation}.")
