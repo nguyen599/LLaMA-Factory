@@ -23,6 +23,10 @@ from .processor_utils import DatasetProcessor, infer_seqlen
 if TYPE_CHECKING:
     from ..mm_plugin import AudioInput, ImageInput, VideoInput
 
+    from transformers import PreTrainedTokenizer, ProcessorMixin
+
+    from ...hparams import DataArguments
+    from ..template import Template
 
 logger = logging.get_logger(__name__)
 

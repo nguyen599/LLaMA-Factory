@@ -26,6 +26,24 @@ if TYPE_CHECKING:
 
 
 @dataclass
+class SequenceParallelProcessor(ABC):
+    r"""
+    A class for data processors.
+    """
+
+    tokenizer: "PreTrainedTokenizer"
+    data_args: "DataArguments"
+    model_args: "ModelArguments"
+
+    @abstractmethod
+    def preprocess_dataset(self, examples: dict[str, list[Any]]) -> dict[str, list[Any]]:
+        r"""
+        Builds model inputs from the examples.
+        """
+        ...
+
+
+@dataclass
 class DatasetProcessor(ABC):
     r"""A class for data processors."""
 

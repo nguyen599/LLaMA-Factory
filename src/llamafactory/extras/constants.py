@@ -3088,7 +3088,6 @@ register_model_group(
     multimodal=True,
 )
 
-
 register_model_group(
     models={
         "Qwen2-VL-2B": {

@@ -60,29 +60,39 @@ Choose your path:
 
 ## Table of Contents
 
+- [Table of Contents](#table-of-contents)
 - [Features](#features)
+  - [Day-N Support for Fine-Tuning Cutting-Edge Models](#day-n-support-for-fine-tuning-cutting-edge-models)
 - [Blogs](#blogs)
 - [Changelog](#changelog)
 - [Supported Models](#supported-models)
 - [Supported Training Approaches](#supported-training-approaches)
 - [Provided Datasets](#provided-datasets)
 - [Requirement](#requirement)
+  - [Hardware Requirement](#hardware-requirement)
 - [Getting Started](#getting-started)
   - [Installation](#installation)
+    - [Install from Source](#install-from-source)
+    - [Install from Docker Image](#install-from-docker-image)
+    - [Install PyTorch](#install-pytorch)
+    - [Install BitsAndBytes](#install-bitsandbytes)
+    - [Install Flash Attention-2](#install-flash-attention-2)
+    - [Install BitsAndBytes](#install-bitsandbytes-1)
   - [Data Preparation](#data-preparation)
   - [Quickstart](#quickstart)
-  - [Fine-Tuning with LLaMA Board GUI](#fine-tuning-with-llama-board-gui-powered-by-gradio)
+  - [Fine-Tuning with LLaMA Board GUI (powered by Gradio)](#fine-tuning-with-llama-board-gui-powered-by-gradio)
   - [LLaMA Factory Online](#llama-factory-online)
   - [Build Docker](#build-docker)
   - [Deploy with OpenAI-style API and vLLM](#deploy-with-openai-style-api-and-vllm)
   - [Download from ModelScope Hub](#download-from-modelscope-hub)
   - [Download from Modelers Hub](#download-from-modelers-hub)
-  - [Use W&B Logger](#use-wb-logger)
+  - [Use W\&B Logger](#use-wb-logger)
   - [Use SwanLab Logger](#use-swanlab-logger)
 - [Projects using LLaMA Factory](#projects-using-llama-factory)
 - [License](#license)
 - [Citation](#citation)
 - [Acknowledgement](#acknowledgement)
+- [Star History](#star-history)
 
 ## Features
 
@@ -622,7 +632,7 @@ pip install -r requirements-dev.txt
 # Install the dependencies for the compilation tools. Note that the commands for this step may vary depending on the operating system. The following are provided for reference
 apt-get install -y build-essential cmake
 
-# Compile & install  
+# Compile & install
 cmake -DCOMPUTE_BACKEND=npu -S .
 make
 pip install .

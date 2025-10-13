@@ -298,7 +298,6 @@ _register_composite_model(
     lora_conflict_keys=["audio_projection_layer"],
 )
 
-
 _register_composite_model(
     model_type="mistral3",
 )

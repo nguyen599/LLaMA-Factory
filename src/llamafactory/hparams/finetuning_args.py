@@ -481,6 +481,10 @@ class FinetuningArguments(
         default=False,
         metadata={"help": "Whether to use the DFT loss."},
     )
+    use_cce: bool = field(
+        default=False,
+        metadata={"help": "Whether or not to use Cut Cross-Entropy for memory-efficient loss computation (SFT path)."},
+    )
     freeze_vision_tower: bool = field(
         default=True,
         metadata={"help": "Whether ot not to freeze the vision tower in MLLM training."},

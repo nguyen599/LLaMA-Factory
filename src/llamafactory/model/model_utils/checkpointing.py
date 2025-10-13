@@ -43,7 +43,7 @@ def get_unsloth_gradient_checkpointing_func() -> Callable:
         r"""Saves VRAM by smartly offloading to RAM."""
 
         @staticmethod
-        @torch.cuda.amp.custom_fwd
+        @torch.amp.custom_fwd(device_type='cuda')
         def forward(
             ctx: "torch.autograd.Function",
             forward_function: "torch.Module",
@@ -60,7 +60,7 @@ def get_unsloth_gradient_checkpointing_func() -> Callable:
             return outputs
 
         @staticmethod
-        @torch.cuda.amp.custom_bwd
+        @torch.amp.custom_bwd(device_type='cuda')
         def backward(ctx: "torch.autograd.Function", grad_output: "torch.Tensor") -> "torch.Tensor":
             (hidden_states,) = ctx.saved_tensors
             hidden_states = hidden_states.to("cuda", non_blocking=True).detach()
@@ -97,6 +97,14 @@ def get_custom_gradient_checkpointing_func(gradient_checkpointing_func: Callable
             return gradient_checkpointing_func(func, *args, **kwargs)
         else:
             return func(*args, **kwargs)
+
+    # Prevent TorchDynamo from tracing this wrapper to avoid recompilations
+    try:
+        import torch._dynamo as _dynamo  # type: ignore
+
+        custom_gradient_checkpointing_func = _dynamo.disable(custom_gradient_checkpointing_func)  # type: ignore
+    except Exception:
+        pass
 
     return custom_gradient_checkpointing_func
 
@@ -146,6 +154,7 @@ def prepare_model_for_training(model: "PreTrainedModel", model_args: "ModelArgum
     (2) make output embedding layer require grads
     (3) add the upcasting of the lm_head in fp32.
     """
+    # return
     if model_args.upcast_layernorm:
         logger.info_rank0("Upcasting layernorm weights in float32.")
         for name, param in model.named_parameters():
