@@ -70,6 +70,10 @@ def is_matplotlib_available():
     return _is_package_available("matplotlib")
 
 
+def is_mcore_adapter_available():
+    return _is_package_available("mcore_adapter")
+
+
 def is_pillow_available():
     return _is_package_available("PIL")
 
@@ -78,12 +82,24 @@ def is_ray_available():
     return _is_package_available("ray")
 
 
+def is_kt_available():
+    return _is_package_available("ktransformers")
+
+
 def is_requests_available():
     return _is_package_available("requests")
 
 
 def is_rouge_available():
     return _is_package_available("rouge_chinese")
+
+
+def is_safetensors_available():
+    return _is_package_available("safetensors")
+
+
+def is_sglang_available():
+    return _is_package_available("sglang")
 
 
 def is_starlette_available():
@@ -98,6 +114,8 @@ def is_transformers_version_greater_than(content: str):
 @lru_cache
 def is_transformers_version_equal_to_4_46():
     return version.parse("4.46.0") <= _get_package_version("transformers") <= version.parse("4.46.1")
+def is_torch_version_greater_than(content: str):
+    return _get_package_version("torch") >= version.parse(content)
 
 
 def is_uvicorn_available():
@@ -106,33 +124,3 @@ def is_uvicorn_available():
 
 def is_vllm_available():
     return _is_package_available("vllm")
-
-
-def is_sglang_available():
-    return _is_package_available("sglang")
-
-
-def is_cce_available():
-    """Return True if Cut Cross-Entropy is importable.
-
-    The library is installed via the optional extra "cce" and exposes the
-    module name `cut_cross_entropy`.
-    """
-    return _is_package_available("cut_cross_entropy")
-
-
-@lru_cache
-def is_fsdp_dcp_available() -> bool:
-    """Return True if FSDP Distributed Checkpoint APIs are available.
-
-    Requires torch>=2.4 and accelerate to be importable.
-    """
-    try:
-        import torch  # noqa: F401
-        from torch.distributed import checkpoint as _dcp  # noqa: F401
-    except Exception:
-        return False
-
-    torch_ok = _get_package_version("torch") >= version.parse("2.4.0")
-    acc_ok = _is_package_available("accelerate")
-    return bool(torch_ok and acc_ok)

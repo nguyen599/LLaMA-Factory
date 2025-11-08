@@ -616,7 +616,14 @@ def get_template_and_fix_tokenizer(tokenizer: "PreTrainedTokenizer", data_args: 
         logger.info_rank0(f"Using default system message: {data_args.default_system}.")
         template.default_system = data_args.default_system
 
-    template.enable_thinking = data_args.enable_thinking
+    if isinstance(template, ReasoningTemplate):
+        logger.warning_rank0(
+            "You are using reasoning template, "
+            "please add `_nothink` suffix if the model is not a reasoning model. "
+            "e.g., qwen3_vl_nothink"
+        )
+        template.enable_thinking = data_args.enable_thinking
+
     template.fix_special_tokens(tokenizer)
     template.fix_jinja_template(tokenizer)
     return template
@@ -1201,10 +1208,10 @@ register_template(
 
 register_template(
     name="hunyuan",
-    format_user=StringFormatter(slots=["<|bos|>user\n{{content}}<|eos|>\n<|bos|>assistant\n"]),
-    format_assistant=StringFormatter(slots=["{{content}}<|eos|>\n"]),
-    format_system=StringFormatter(slots=["<|bos|>system\n{{content}}<|eos|>\n"]),
-    format_prefix=EmptyFormatter(slots=["<|bos|>"]),
+    format_user=StringFormatter(slots=["{{content}}<|extra_0|>"]),
+    format_assistant=StringFormatter(slots=["{{content}}<|eos|>"]),
+    format_system=StringFormatter(slots=["{{content}}<|extra_4|>"]),
+    format_prefix=EmptyFormatter(slots=["<|startoftext|>"]),
     stop_words=["<|eos|>"],
 )
 
